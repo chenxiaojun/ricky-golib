@@ -1,4 +1,4 @@
-package common
+package exercise
 
 import (
 	"errors"
