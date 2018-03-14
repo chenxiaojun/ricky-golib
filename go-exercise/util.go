@@ -11,6 +11,7 @@ import (
 	"fmt"
 	
 	"github.com/fatih/color"
+	"github.com/PuerkitoBio/goquery"
 )
 
 const (
@@ -99,6 +100,76 @@ func readCaptchaInput() string {
 	return captcha
 }
 
+// ZhihuPage 是一个知乎页面，User, Question, Answer, Collection的公共部分
+type Page struct {
+	// Link 是该页面的链接
+	Link string
+
+	// doc 是 HTML document
+	doc *goquery.Document
+
+	// fields 是字段缓存，避免重复解析页面
+	fields map[string]interface{}
+}
+
+// newZhihuPage 是 private 的构造器
+func newZhihuPage(link string) *Page {
+	return &Page {
+		Link: link,
+		fields: make(map[string]interface{}),
+	}
+}
+
+// Doc 用于获取当前问题页面的 HTML document， 惰性求值
+func (page *Page) Doc() *goquery.Document {
+	if page.doc != nil {
+		return page.doc
+	}
+
+	err := page.Refresh()
+	if err != nil {
+		return nil
+	}
+
+	return page.doc
+}
+
+// Refresh 会重新加载当前页面，获取最新的数据
+func (page *Page) Refresh() (err error) {
+	page.fields = make(map[string]interface{})
+	page.doc, err = newDocumentFromUrl(page.Link)
+	return err
+}
+
+// newDocumentFromURl 会请求给定的url 并返回一个goquery.Document对象用于解析
+func newDocumentFromUrl(url string) (*goquery.Document, error) {
+	resp, err := gSession.Get(url)
+	if err != nil {
+		logger.Error("请求 %s 失败：%s", url, err.Error())
+		return nil, err
+	}
+
+	doc, err := goquery.NewDocumentFromResponse(resp)
+	if err != nil {
+		logger.Error("解析页面失败：%s", err.Error())
+	}
+	return doc, err
+}
+
+func (page *Page) getStringField(field string) (value string, exists bool) {
+	if got, ok := page.fields[field]; ok {
+		return got.(string), true
+	}
+	return "", false
+}
+
+func (page *Page) setField(field string, value interface{}) {
+	page.fields[field] = value
+}
+
+func strip(s string) string {
+	return strings.TrimSpace(s)
+}
 
 
 
